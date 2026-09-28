@@ -25,6 +25,7 @@ test.describe('Problem user flows', () => {
     await login.login('problem_user');
 
     await inventory.addToCart('sauce-labs-bike-light');
+    await expect(inventory.cartBadge).toHaveText('1'); // item is really in the cart before we open it
     await inventory.openCart();
 
     await expect(cart.itemNames).toContainText('Sauce Labs Bike Light');

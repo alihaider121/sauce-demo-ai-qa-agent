@@ -24,5 +24,6 @@ export class InventoryPage {
 
   async openCart() {
     await this.cartLink.click();
+    await this.page.waitForURL(/cart\.html/); // don't let the next step run against the inventory page
   }
 }
