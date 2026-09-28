@@ -99,7 +99,7 @@ OBSERVE ──▶ PLAN ──▶ WRITE ──▶ RUN ──▶ REFLECT / HEAL �
 ### Low priority
 5. The README says "6 hand-written tests", but there are 8.
 6. The README badge and report URL still contain `YOUR_USERNAME`.
-7. There are typos in `PROJECT_PROGRESS_SUMMARY.md` ("thema", "playright.config.ts").
+7. ~~There are typos in `PROJECT_PROGRESS_SUMMARY.md`.~~ The file was outdated and has been removed (superseded by this report and the README).
 
 ---
 
