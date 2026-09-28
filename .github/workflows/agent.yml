@@ -1,0 +1,100 @@
+name: AI QA Agent
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 2 * * *' # every night at 02:00 UTC — fully autonomous
+  workflow_dispatch: # "Run workflow" button
+
+permissions:
+  contents: write # push the agent's branch
+  pull-requests: write # open a PR with new/healed tests
+  models: read # free AI via GitHub Models using GITHUB_TOKEN — no API key!
+  pages: write # publish the HTML report
+  id-token: write
+
+concurrency:
+  group: ai-qa-agent
+  cancel-in-progress: false
+
+jobs:
+  agent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci # exact versions from package-lock.json
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run hand-written tests (baseline)
+        run: npm run test:manual
+
+      - name: 🤖 Run the AI agent (observe → plan → write → run → heal → report)
+        if: github.event_name != 'push' # pushes only run the baseline; saves free-tier LLM quota
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Optional: use another OpenAI-compatible provider (e.g. Gemini) instead of GitHub Models.
+          # Set in Settings → Secrets and variables → Actions. Left empty, GitHub Models is used.
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL: ${{ vars.LLM_BASE_URL }}
+          MODEL: ${{ vars.MODEL }}
+          MAX_SCENARIOS: 5
+        run: npm run agent
+
+      - name: Run full suite for the HTML report
+        if: always()
+        run: npx playwright test
+        continue-on-error: true # known app bugs are marked test.fail(), so red here means something new
+
+      - name: Build report site
+        if: always()
+        run: |
+          mkdir -p site
+          cp -r playwright-report/* site/ 2>/dev/null || true
+          cp agent-output/summary.md site/agent-summary.md 2>/dev/null || true
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-run
+          path: |
+            playwright-report/
+            agent-output/
+            tests/generated/
+
+      - name: Upload Pages artifact
+        if: always() && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Open a PR with the agent's tests
+        if: github.event_name != 'push'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: ai-agent/generated-tests
+          commit-message: 'test: AI agent generated/healed tests'
+          title: '🤖 AI agent: new and self-healed tests'
+          body-path: agent-output/summary.md
+          add-paths: tests/generated/*.spec.ts
+
+  deploy-report:
+    needs: agent
+    if: always() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

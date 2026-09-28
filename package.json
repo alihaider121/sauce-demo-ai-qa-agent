@@ -1,0 +1,25 @@
+{
+  "name": "sauce-demo-ai-qa-agent",
+  "version": "1.0.0",
+  "description": "An autonomous AI QA agent that writes, runs, self-heals and reports Playwright tests for saucedemo.com — no human in the loop.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:manual": "playwright test tests/manual",
+    "test:generated": "playwright test tests/generated",
+    "agent": "tsx agent/run.ts",
+    "report": "playwright show-report",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["playwright", "agentic-ai", "test-automation", "github-actions", "github-models"],
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^22.0.0",
+    "dotenv": "^16.4.5",
+    "openai": "^4.77.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
