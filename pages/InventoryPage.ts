@@ -24,6 +24,8 @@ export class InventoryPage {
 
   async openCart() {
     await this.cartLink.click();
-    await this.page.waitForURL(/cart\.html/); // don't let the next step run against the inventory page
+    // Sauce Demo is a single-page app: the URL changes before the cart renders, so wait for the
+    // cart list itself — otherwise the next step can still see the inventory page (flaky on CI)
+    await this.page.getByTestId('cart-list').waitFor();
   }
 }
