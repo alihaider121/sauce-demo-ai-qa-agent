@@ -7,6 +7,8 @@ export default defineConfig({
   fullyParallel: true,
   retries: 0, // the AGENT does the retrying/healing, not Playwright
   reporter: [
+    // in GitHub Actions, also show each failure as an annotation on the run summary page
+    ...(process.env.GITHUB_ACTIONS ? [['github'] as const] : []),
     ['list'],
     ['html', { open: 'never', outputFolder: 'playwright-report' }],
     ['json', { outputFile: 'test-results/results.json' }],
