@@ -18,7 +18,7 @@ This project is an **autonomous AI QA agent** for [saucedemo.com](https://www.sa
 | Hand-written tests (8) | ❌ All fail, only because no browser is installed | ✅ 8/8 pass |
 | `.env` / LLM access | ❌ Not created | ✅ Gemini configured (GitHub Models unreachable locally) |
 | Agent end-to-end run | — | ⚠️ Runs to completion; clean run pending on the Gemini daily quota |
-| Git repository | ❌ Not initialised | ❌ Not initialised |
+| Git repository | ❌ Not initialised | ✅ Initialised, first commit on `main` |
 | GitHub Actions workflow | ⚠️ Exists but sits in the wrong folder | ✅ In `.github/workflows/`, supports Gemini |
 
 **Bottom line at review:** the code was essentially finished. What was left was **environment setup, a first real run, and publishing to GitHub**. Progress since then is in section 8.
