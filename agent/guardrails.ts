@@ -31,6 +31,8 @@ export function checkCode(code: string): string | null {
   if (!/\bexpect\(/.test(code)) return 'must contain at least one expect() assertion';
   if (/test\.(skip|fixme|only)\b/.test(code)) return 'must not use test.skip / test.fixme / test.only';
   if (/page\.route\(|child_process|fs\./.test(code)) return 'must not mock the network or touch the file system';
+  // force skips Playwright's "is it really clickable?" checks; fixed sleeps hide timing bugs
+  if (/force\s*:\s*true|waitForTimeout\(/.test(code)) return 'must not use { force: true } or waitForTimeout';
   const gotos = [...code.matchAll(/goto\(\s*['"`](https?:\/\/[^'"`]+)/g)].map((m) => m[1]);
   if (gotos.some((u) => !u.includes('saucedemo.com'))) return 'must only visit saucedemo.com';
   return null;

@@ -32,7 +32,7 @@ or any OpenAI-compatible provider such as Google Gemini.
 ## 🛡️ Guardrails (`agent/guardrails.ts`)
 An autonomous agent needs hard limits:
 - It may only write inside `tests/generated/`.
-- Generated code must use Playwright, contain assertions, and stay on saucedemo.com. `test.skip`, network mocking and file access are not allowed.
+- Generated code must use Playwright, contain assertions, and stay on saucedemo.com. `test.skip`, network mocking, file access, `{ force: true }` and fixed sleeps (`waitForTimeout`) are not allowed.
 - **No cheating:** a "fix" with fewer `expect()` calls than the original is rejected.
 - There are budgets for scenarios per run, heal attempts per test (3), and total LLM calls, to stay inside the free tier.
 - Tests it can't heal are **quarantined** rather than left broken.
@@ -48,7 +48,7 @@ behaviour, so it should **report those bugs** instead of "fixing" the tests to a
 ```bash
 npm install
 npx playwright install chromium
-npm run test:manual          # the 8 hand-written tests
+npm run test:manual          # the 10 hand-written tests
                              # (download blocked? set PW_CHANNEL=msedge in .env to use Edge)
 cp .env.example .env         # add a GitHub token with "Models: read" (or a Gemini key, see below)
 npm run agent                # 🤖 let the agent loose

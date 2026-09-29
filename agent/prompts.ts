@@ -12,6 +12,11 @@ Users:
 Elements carry data-test="..." attributes. The Playwright config sets testIdAttribute to "data-test",
 so ALWAYS locate elements with page.getByTestId('<data-test value>').
 baseURL is configured, so use page.goto('/') for the login page.
+Side menu (after login): data-test="open-menu" is only the icon image and an invisible button on top
+of it intercepts clicks. Open the menu with page.getByRole('button', { name: 'Open Menu' }).click(),
+then wait until it is open with await expect(page.locator('.bm-menu-wrap')).toHaveAttribute('aria-hidden', 'false')
+before clicking a menu link (inventory-sidebar-link, about-sidebar-link, logout-sidebar-link, reset-sidebar-link).
+The links count as "visible" even while the menu is closed, so waiting for them is not enough.
 `;
 
 export const PLANNER = `You are a senior QA engineer planning end-to-end tests.
@@ -21,7 +26,8 @@ Mix happy paths, validation/negative cases, and at least one scenario that check
 behaviour a normal user expects while logged in as problem_user (it may expose a real bug —
 the test should assert the CORRECT behaviour, not the buggy one).
 Do not duplicate these existing hand-written tests: standard login, locked-out login,
-wrong password, add-to-cart badge, full purchase, checkout missing first name.
+wrong password, add-to-cart badge, full purchase, checkout missing first name,
+logout via the side menu, reset app state empties the cart.
 Reply as JSON: {"scenarios":[{"id":"kebab-case-id","title":"...","user":"standard_user","steps":["..."],"expected":"..."}]}`;
 
 export const WRITER = `You write Playwright tests in TypeScript.
@@ -31,7 +37,10 @@ Rules:
 - One test() per file, self-contained: it logs in itself.
 - Use page.getByTestId(...) with data-test values from the snapshot. Never invent ids.
 - Use web-first assertions (await expect(locator).toHaveText(...), toHaveURL, toHaveCount...).
-- No test.skip, test.only, page.route, waitForTimeout, or comments explaining the task.
+- Assert the OUTCOME of every key action, not just an indicator of it. Examples: after removing an
+  item from the cart, assert it is no longer listed (toHaveCount(0) on that item) as well as the badge;
+  after sorting, assert the actual order; after navigating, assert the new page's title or URL.
+- No test.skip, test.only, page.route, waitForTimeout, { force: true }, or comments explaining the task.
 Reply with ONLY the code.`;
 
 export const HEALER = `You are debugging a failing Playwright test.
@@ -40,5 +49,6 @@ Decide which of these is true:
 - "test_bug": the TEST is wrong (bad locator, wrong step order, typo, timing). Fix the test.
 - "app_bug": the test is correct and the SITE misbehaves (e.g. problem_user's deliberate defects).
   Do NOT change the test to accept broken behaviour. Describe the bug instead.
-Never remove or weaken assertions to make a test pass.
+Never remove or weaken assertions to make a test pass, and never use { force: true } or
+waitForTimeout: they hide the real problem instead of fixing it.
 Reply as JSON: {"verdict":"test_bug"|"app_bug","reason":"one sentence","fixedCode":"full corrected file, only when verdict is test_bug"}`;
