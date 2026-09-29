@@ -9,12 +9,12 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { observeSite, snapshotsToText } from './observe';
 import { ask, askJson, stripFences, llmCallsUsed } from './llm';
 import { PLANNER, WRITER, HEALER } from './prompts';
 import { LIMITS, GENERATED_DIR, assertSafePath, canBeAppBug, checkCode, isWeakened } from './guardrails';
 import { writeReport, type Outcome } from './report';
+import { runTest, markKnownBug } from './runner';
 
 interface Scenario {
   id: string;
@@ -22,57 +22,6 @@ interface Scenario {
   user: string;
   steps: string[];
   expected: string;
-}
-
-interface RunResult {
-  passed: boolean;
-  error: string;
-}
-
-// ---------- RUN: execute one test file and read the JSON result ----------
-function runTest(file: string): RunResult {
-  const jsonOut = path.resolve('agent-output', `run-${path.basename(file)}.json`);
-  fs.rmSync(jsonOut, { force: true }); // never read a stale result from a previous attempt
-  // run Playwright's CLI with node directly: no shell, so it works the same on Windows and Linux
-  const cli = path.resolve('node_modules', '@playwright', 'test', 'cli.js');
-  // Playwright treats the file argument as a regex, so Windows backslashes must become forward slashes
-  const filter = file.split(path.sep).join('/');
-  spawnSync(process.execPath, [cli, 'test', filter, '--reporter=json'], {
-    env: { ...process.env, PLAYWRIGHT_JSON_OUTPUT_NAME: jsonOut },
-    encoding: 'utf8',
-  });
-  if (!fs.existsSync(jsonOut)) return { passed: false, error: 'Playwright produced no result (syntax error?)' };
-
-  const report = JSON.parse(fs.readFileSync(jsonOut, 'utf8'));
-  const errors: string[] = [];
-  let failed = report.errors?.length > 0; // e.g. TypeScript/compile errors
-  for (const e of report.errors ?? []) errors.push(e.message ?? String(e));
-
-  const walk = (suite: any) => {
-    for (const spec of suite.specs ?? []) {
-      for (const t of spec.tests ?? []) {
-        for (const r of t.results ?? []) {
-          if (r.status !== 'passed') {
-            failed = true;
-            if (r.error?.message) errors.push(r.error.message);
-          }
-        }
-      }
-    }
-    (suite.suites ?? []).forEach(walk);
-  };
-  (report.suites ?? []).forEach(walk);
-
-  // strip terminal colour codes so the model gets clean text
-  const error = errors.join('\n').replace(/\u001b\[[0-9;]*m/g, '').slice(0, 2500);
-  return { passed: !failed, error };
-}
-
-/** Mark a test that exposes a real app bug with Playwright's test.fail() — honest, and it
- *  will alert us (by "unexpectedly passing") the day the bug is fixed. */
-function markKnownBug(code: string, reason: string): string {
-  const note = `test.fail(true, ${JSON.stringify('Known app bug found by AI agent: ' + reason)});`;
-  return code.replace(/(async\s*\(\s*\{[^}]*\}\s*\)\s*=>\s*\{)/, `$1\n  ${note}`);
 }
 
 async function main() {
