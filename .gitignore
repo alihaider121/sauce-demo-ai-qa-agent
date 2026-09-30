@@ -5,3 +5,8 @@ blob-report/
 agent-output/
 .env
 .DS_Store
+
+# personal notes and post material (kept local)
+Day_Report_*.pdf
+LinkedIn_Post_Guide.pdf
+linkedin-post/

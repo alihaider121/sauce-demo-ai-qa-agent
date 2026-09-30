@@ -1,5 +1,7 @@
 # 🤖 Sauce Demo AI QA Agent
 
+<img src="docs/images/cover.png" alt="An AI agent that tests a website on its own" width="520">
+
 An **autonomous AI testing agent** that writes, runs, self-heals and reports Playwright tests for
 [saucedemo.com](https://www.saucedemo.com), with **no human in the loop**.
 It runs every night in GitHub Actions and uses **free** AI: GitHub Models by default (no API key needed),
@@ -7,6 +9,14 @@ or any OpenAI-compatible provider such as Google Gemini.
 
 ![AI QA Agent](https://github.com/alihaider121/sauce-demo-ai-qa-agent/actions/workflows/agent.yml/badge.svg)
 📊 **Live report:** https://alihaider121.github.io/sauce-demo-ai-qa-agent/
+
+## What it produces
+
+| The agent opens its own pull requests | Every run publishes a test report |
+|---|---|
+| ![Pull request opened by the agent](docs/images/pull-request.png) | ![Playwright report, all tests passing](docs/images/test-report.png) |
+
+![Green GitHub Actions run](docs/images/actions-run.png)
 
 ## How the agent thinks
 

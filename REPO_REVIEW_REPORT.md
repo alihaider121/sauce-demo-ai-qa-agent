@@ -9,15 +9,15 @@
 
 This project is an **autonomous AI QA agent** for [saucedemo.com](https://www.saucedemo.com). It decides what to test, writes Playwright tests, runs them, repairs its own broken tests, recognises real app bugs, and publishes a report. It runs nightly in GitHub Actions and uses **GitHub Models** (free tier, `openai/gpt-4o-mini`) as its LLM.
 
-| Area | Status at review | Status now (end of 2026-09-28) |
+| Area | Status at review | Status now (2026-09-30) |
 |---|---|---|
 | Code complete | ✅ All agent stages are implemented | ✅ Plus the hardening listed in section 8 |
 | TypeScript typecheck (`tsc --noEmit`) | ✅ Passes, 0 errors | ✅ Passes |
 | Dependencies installed | ✅ `node_modules` present | ✅ |
 | Playwright browser | ❌ Download of Chromium timed out | ✅ Uses the installed Edge (`PW_CHANNEL=msedge`) |
-| Hand-written tests (8) | ❌ All fail, only because no browser is installed | ✅ 8/8 pass |
+| Hand-written tests | ❌ All 8 fail, only because no browser is installed | ✅ 10/10 pass (2 side-menu tests added) |
 | `.env` / LLM access | ❌ Not created | ✅ Gemini configured (GitHub Models unreachable locally) |
-| Agent end-to-end run | — | ⚠️ Runs to completion; clean run pending on the Gemini daily quota |
+| Agent end-to-end run | — | ✅ Runs locally and nightly on GitHub; its first PR (3 tests) is merged |
 | Git repository | ❌ Not initialised | ✅ Initialised, first commit on `main` |
 | GitHub Actions workflow | ⚠️ Exists but sits in the wrong folder | ✅ In `.github/workflows/`, supports Gemini |
 
@@ -142,6 +142,21 @@ Playwright · TypeScript · Node 22 · `tsx` · GitHub Actions · GitHub Pages �
 | One unavailable AI call crashed the whole run | That scenario is quarantined with a note and the run continues |
 | Chromium download times out on this network | `PW_CHANNEL=msedge` uses the installed Edge for both the tests and the observe step |
 
+---
+
+## 9. Progress log — 2026-09-29 and 2026-09-30
+
+| Date | What happened | Why it mattered |
+|---|---|---|
+| 09-29 | First clean local agent run: 3 genuine passes, 2 quarantined | Every result was checked by hand. One quarantine was wrong (see next row) |
+| 09-29 | **Fixed:** `runTest()` judged runs by the raw result, not Playwright's verdict, so the app-bug proof rejected **real** bugs too | Now uses `test.status === 'expected'`. Checked on 4 cases: real bug accepted, fake bug rejected. Moved to `agent/runner.ts` |
+| 09-29 | First full run on GitHub; the agent opened **PR #1** (2 passing tests + 1 real `problem_user` bug), which was merged | Proves the whole loop works unattended |
+| 09-29 | **Fixed:** every side-menu scenario was quarantined because `data-test="open-menu"` is an icon under an invisible button, and the menu links count as visible while off-screen | `SideMenu` page object, 2 hand-written menu tests, a prompt hint, stricter "assert the outcome" rules, and a guardrail against `{ force: true }` / `waitForTimeout` |
+| 09-30 | Updated all GitHub Actions to current major versions | Removes the Node.js 20 deprecation warnings. Release notes checked for breaking changes |
+| 09-30 | **Keep and grow:** the agent no longer deletes `tests/generated/` at the start of a run | Otherwise the next nightly PR would have deleted the merged tests. The planner is told about existing tests, and new files never overwrite them (`agent/suite.ts`) |
+| 09-30 | README: cover image and screenshots | Shows visitors what the project produces |
+
 ### Remaining
-- **Today:** first git commit, push to GitHub, enable Pages and pull-request permissions, and add the Gemini secret and variables.
-- **After the quota resets:** a clean 5-scenario agent run, checking its results, then triggering the workflow on GitHub.
+- Check the first nightly run with the menu hint, stricter asserts and keep-and-grow, including the updated create-pull-request action.
+- Future: let the agent repair **merged** AI tests that start failing (today it only heals tests it writes in the same run).
+- Watch the `ubuntu-latest` move to Ubuntu 26 (from 2026-10-19).
