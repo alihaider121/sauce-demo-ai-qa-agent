@@ -1,88 +1,154 @@
 # 🤖 Sauce Demo AI QA Agent
 
+[![AI QA Agent](https://github.com/alihaider121/sauce-demo-ai-qa-agent/actions/workflows/agent.yml/badge.svg)](https://github.com/alihaider121/sauce-demo-ai-qa-agent/actions/workflows/agent.yml)
+[![Live report](https://img.shields.io/badge/report-live-2ea44f)](https://alihaider121.github.io/sauce-demo-ai-qa-agent/)
+![Playwright](https://img.shields.io/badge/Playwright-2EAD33?logo=playwright&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?logo=githubactions&logoColor=white)
+
+**An AI agent that tests a website on its own.** It explores [saucedemo.com](https://www.saucedemo.com), decides what to test, writes Playwright tests, runs them, repairs the ones it got wrong, and reports real bugs, all without a human writing a line of test code. It runs every night on GitHub Actions and opens a pull request with its new tests for you to review.
+
 <img src="docs/images/cover.png" alt="An AI agent that tests a website on its own" width="520">
 
-An **autonomous AI testing agent** that writes, runs, self-heals and reports Playwright tests for
-[saucedemo.com](https://www.saucedemo.com), with **no human in the loop**.
-It runs every night in GitHub Actions and uses **free** AI: GitHub Models by default (no API key needed),
-or any OpenAI-compatible provider such as Google Gemini.
+---
 
-![AI QA Agent](https://github.com/alihaider121/sauce-demo-ai-qa-agent/actions/workflows/agent.yml/badge.svg)
-📊 **Live report:** https://alihaider121.github.io/sauce-demo-ai-qa-agent/
+## ✨ Results so far
 
-## What it produces
+- ✅ **Working tests written by AI.** Its tests are merged into the suite, which is **13/13 green** in the [live report](https://alihaider121.github.io/sauce-demo-ai-qa-agent/).
+- 🐞 **Real bugs found and proven.** It detected Sauce Demo's planted `problem_user` defects (broken checkout form, broken sorting) and flagged them as bugs instead of bending the tests to pass.
+- 🔁 **Fully autonomous pipeline.** Nightly run, then a pull request with new tests, then a report published to GitHub Pages.
+- 🛡️ **Guardrails that caught the AI's mistakes.** Including a *false* bug report, which is why every "app bug" verdict must now be proven.
+- 💸 **Runs on free AI.** Google Gemini's free tier with automatic model fallbacks, or GitHub Models.
+
+## 📸 What it produces
 
 | The agent opens its own pull requests | Every run publishes a test report |
 |---|---|
 | ![Pull request opened by the agent](docs/images/pull-request.png) | ![Playwright report, all tests passing](docs/images/test-report.png) |
 
-![Green GitHub Actions run](docs/images/actions-run.png)
+---
 
-## How the agent thinks
+## ⚙️ How it works
 
 ```
  ┌──────────┐   ┌────────┐   ┌────────┐   ┌───────┐   ┌──────────────┐   ┌──────────┐
  │ OBSERVE  │──▶│  PLAN  │──▶│ WRITE  │──▶│  RUN  │──▶│ REFLECT/HEAL │──▶│  REPORT  │
- │ snapshot │   │ decide │   │ code a │   │ play- │   │ test bug? fix│   │ summary +│
- │ the pages│   │ tests  │   │ .spec  │   │ wright│   │ app bug? flag│   │ HTML/PR  │
+ │ read the │   │ AI     │   │ AI     │   │ Play- │   │ test bug→fix │   │ summary, │
+ │ pages    │   │ picks  │   │ writes │   │ wright│   │ app bug→flag │   │ PR, site │
  └──────────┘   └────────┘   └────────┘   └───────┘   └──────┬───────┘   └──────────┘
-                                              ▲              │ fixed (max 3 tries)
+                                              ▲              │ up to 3 fix attempts
                                               └──────────────┘
 ```
 
-| Step | File | What happens |
+| Step | What happens | Code |
 |---|---|---|
-| Observe | `agent/observe.ts` | Opens each page and captures its accessibility tree and `data-test` ids |
-| Plan | `agent/run.ts` + `prompts.ts` | The model proposes new test scenarios as JSON |
-| Write | `agent/run.ts` | The model writes one `.spec.ts` per scenario into `tests/generated/`. Tests merged from earlier runs are kept: the planner is told about them to avoid duplicates, and new files never overwrite them, so the suite grows run by run |
-| Run | `agent/run.ts` | Playwright runs it, and the agent reads the JSON result |
-| Reflect / Heal | `agent/run.ts` | On failure, the model decides whether it's a **test bug** (fix it and rerun) or an **app bug** (flag it with `test.fail()`) |
-| Report | `agent/report.ts` | Markdown summary, GitHub job summary, HTML report on Pages, and a PR with the new tests |
+| **Observe** | Opens the key pages and records their accessibility tree and `data-test` ids | `agent/observe.ts` |
+| **Plan** | The AI proposes new scenarios, avoiding ones already covered | `agent/run.ts`, `agent/prompts.ts` |
+| **Write** | The AI writes one `.spec.ts` per scenario into `tests/generated/`. Existing tests are kept, so the suite grows | `agent/run.ts`, `agent/suite.ts` |
+| **Run** | Playwright runs the test and the agent reads its verdict | `agent/runner.ts` |
+| **Reflect / heal** | On failure, the AI decides whether it's a **test bug** (fix and rerun) or an **app bug** (mark it `test.fail()`) | `agent/run.ts` |
+| **Report** | Markdown summary, HTML report on GitHub Pages, and a pull request with the new tests | `agent/report.ts`, workflow |
 
-## 🛡️ Guardrails (`agent/guardrails.ts`)
-An autonomous agent needs hard limits:
-- It may only write inside `tests/generated/`.
-- Generated code must use Playwright, contain assertions, and stay on saucedemo.com. `test.skip`, network mocking, file access, `{ force: true }` and fixed sleeps (`waitForTimeout`) are not allowed.
-- **No cheating:** a "fix" with fewer `expect()` calls than the original is rejected.
-- There are budgets for scenarios per run, heal attempts per test (3), and total LLM calls, to stay inside the free tier.
-- Tests it can't heal are **quarantined** rather than left broken.
-- **App bugs must be proven:** an "app bug" verdict is only accepted for users with deliberate defects
-  (`problem_user`, `error_user`, `visual_user`, `performance_glitch_user`), and only if the test really
-  fails on the live site when rerun with `test.fail()`.
-- If the AI is unavailable for one scenario, that scenario is quarantined and the run carries on.
+A test that exposes a real bug stays in the suite marked `test.fail()`: it keeps confirming the bug and will alert you the day the bug is fixed.
 
-The `problem_user` account on Sauce Demo has deliberate bugs. The agent is told to assert the *correct*
-behaviour, so it should **report those bugs** instead of "fixing" the tests to accept them.
+## 🛡️ Guardrails: why you can trust it
 
-## Run it on your laptop
+An agent with nobody watching needs rules it can't talk its way around (`agent/guardrails.ts`):
+
+| Rule | Prevents |
+|---|---|
+| Writes only `.spec.ts` files inside `tests/generated/` | Touching anything else in the repo |
+| A fix may not have fewer `expect()` checks than the original | "Fixing" a test by deleting its assertions |
+| "App bug" is only allowed for accounts with planted defects, **and** the test must really fail on the live site when rerun | Invented bugs hiding broken tests forever |
+| No `test.skip`, network mocking, file access, `{ force: true }` or `waitForTimeout` | Shortcuts that hide real problems |
+| Budgets: scenarios per run, 3 fix attempts per test, a cap on AI calls | Runaway cost and quota use |
+| Tests it can't fix are **quarantined**, and one AI outage skips only that scenario | A broken suite, or one failure sinking the whole run |
+
+---
+
+## 🚀 Quick start
+
+**Requirements:** Node.js 22+, plus an API key for [Google Gemini](https://aistudio.google.com/apikey) (free) or a GitHub token with *Models: read*.
+
 ```bash
+git clone https://github.com/alihaider121/sauce-demo-ai-qa-agent.git
+cd sauce-demo-ai-qa-agent
 npm install
 npx playwright install chromium
-npm run test:manual          # the 10 hand-written tests
-                             # (download blocked? set PW_CHANNEL=msedge in .env to use Edge)
-cp .env.example .env         # add a GitHub token with "Models: read" (or a Gemini key, see below)
-npm run agent                # 🤖 let the agent loose
-npm run report               # open the HTML report
+
+npm run test:manual     # the 10 hand-written tests
+cp .env.example .env    # then add your key (see Configuration)
+npm run agent           # 🤖 run the agent
+npm run report          # open the HTML report
 ```
 
-### Choosing the AI provider
-| Setting (`.env` or GitHub Actions) | GitHub Models (default) | Google Gemini (free tier) |
+### Run it on GitHub (nightly, hands-off)
+
+1. Fork the repo.
+2. **Settings → Pages → Source:** GitHub Actions.
+3. **Settings → Actions → General:** tick *Allow GitHub Actions to create and approve pull requests*.
+4. **Settings → Secrets and variables → Actions:** add the secret `LLM_API_KEY` and the variables `LLM_BASE_URL` and `MODEL` (see below). Skip this step to use GitHub Models instead.
+5. **Actions → AI QA Agent → Run workflow.** After that it runs every night.
+
+Pushes run only the hand-written tests. The AI runs on the nightly schedule or on demand, which saves quota.
+
+## 🔧 Configuration
+
+Set these in `.env` locally, or as repository secrets and variables in GitHub Actions.
+
+| Variable | Google Gemini (used here) | GitHub Models |
 |---|---|---|
-| `GITHUB_TOKEN` | token with **Models: read** | — |
-| `LLM_BASE_URL` | *(empty)* | `https://generativelanguage.googleapis.com/v1beta/openai/` |
-| `LLM_API_KEY` | *(empty)* | key from https://aistudio.google.com/apikey |
-| `MODEL` | `openai/gpt-4o-mini` | `gemini-3.7-flash,gemini-3.6-flash,gemini-3.8-flash` |
+| `LLM_BASE_URL` | `https://generativelanguage.googleapis.com/v1beta/openai/` | *(leave empty)* |
+| `LLM_API_KEY` | your Gemini key | *(leave empty)* |
+| `GITHUB_TOKEN` | — | token with *Models: read* (automatic in Actions) |
+| `MODEL` | `gemini-3.7-flash,gemini-3.6-flash,gemini-3.8-flash` | `openai/gpt-4o-mini` |
 
-`MODEL` can list several models separated by commas. When one is busy or rate limited, the agent tries the next one.
-Gemini's free tier allows about **20 requests per model per day**, and a 5-scenario run needs up to ~21,
-so listing 3 or more models is recommended.
+| Optional | Default | Purpose |
+|---|---|---|
+| `MAX_SCENARIOS` | `5` | New tests per run |
+| `MAX_LLM_CALLS` | `30` | AI call budget per run |
+| `PW_CHANNEL` | *(empty)* | Use an installed browser, e.g. `msedge`, if the Chromium download is blocked |
 
-## Run it in GitHub (fully autonomous)
-1. Push this repo to GitHub.
-2. **Settings → Pages → Source: GitHub Actions**
-3. **Settings → Actions → General → Workflow permissions:** tick *"Allow GitHub Actions to create and approve pull requests"*.
-4. *(Optional, to use Gemini)* **Settings → Secrets and variables → Actions:** add secret `LLM_API_KEY`, and variables `LLM_BASE_URL` and `MODEL`.
-5. **Actions → AI QA Agent → Run workflow** (after that it runs nightly on its own).
+`MODEL` accepts a comma-separated list: if one model is busy or rate-limited, the next is tried. Gemini's free tier allows about 20 requests per model per day, and a run uses roughly 12–15.
 
-## Tech
-Playwright · TypeScript · GitHub Actions · GitHub Models / Gemini (OpenAI-compatible API) · Page Object Model
+---
+
+## 📁 Project structure
+
+```
+agent/
+  run.ts          the agent loop: observe → plan → write → run → heal → report
+  observe.ts      reads the site's pages for the AI
+  prompts.ts      instructions for the planner, writer and healer
+  llm.ts          AI client: any OpenAI-compatible API, retries, model fallbacks
+  guardrails.ts   the rules above
+  runner.ts       runs one test and reads Playwright's verdict
+  suite.ts        existing AI tests, safe file names for new ones
+  report.ts       the markdown summary
+pages/            page objects: Login, Inventory, Cart, Checkout, SideMenu
+tests/
+  manual/         10 hand-written tests (the baseline)
+  generated/      tests written by the agent, merged via pull requests
+.github/workflows/agent.yml   nightly pipeline: tests → agent → report → PR
+```
+
+## 💡 Lessons learned
+
+Building it surfaced problems that are typical for AI agents:
+
+- **Never trust a claim you can check.** The AI once reported a bug that didn't exist, so bugs now have to be proven by a rerun.
+- **A plausible result can still be wrong.** A Windows path bug made every test "fail" before it ran, and the AI confidently blamed the website.
+- **Flaky tests come from timing.** A test passed locally but failed on CI because the single-page app changed its URL before its content. The fix is to wait for the element you're about to check, never to add a sleep.
+- **Free tiers need fallbacks.** Busy models (503) and daily quotas (429) are routine, so the agent rotates models and never lets one outage sink a run.
+
+## 🗺️ Roadmap
+
+- [x] Autonomous nightly pipeline with pull requests and a published report
+- [x] Proof-based bug detection and anti-cheating guardrails
+- [x] Keep merged tests and grow the suite run by run
+- [ ] Repair merged AI tests that start failing later
+- [ ] Cover more of the site (product details, the other test accounts)
+
+## 🧰 Tech stack
+
+Playwright · TypeScript · Node.js · GitHub Actions · GitHub Pages · Google Gemini / GitHub Models (OpenAI-compatible API) · Page Object Model
