@@ -15,6 +15,7 @@ import { PLANNER, WRITER, HEALER } from './prompts';
 import { LIMITS, GENERATED_DIR, assertSafePath, canBeAppBug, checkCode, isWeakened } from './guardrails';
 import { writeReport, type Outcome } from './report';
 import { runTest, markKnownBug } from './runner';
+import { existingTestTitles, freeFileName } from './suite';
 
 interface Scenario {
   id: string;
@@ -26,8 +27,9 @@ interface Scenario {
 
 async function main() {
   fs.mkdirSync('agent-output', { recursive: true });
-  // fresh start: remove last run's generated tests
-  for (const f of fs.readdirSync(GENERATED_DIR)) if (f.endsWith('.spec.ts')) fs.rmSync(path.join(GENERATED_DIR, f));
+  // keep and grow: tests merged from earlier runs stay; the planner is told about them
+  const existing = existingTestTitles();
+  console.log(`\n📚 ${existing.length} AI-written tests already in the suite`);
 
   // 1. OBSERVE
   console.log('\n1️⃣  OBSERVE — looking at the site');
@@ -37,7 +39,11 @@ async function main() {
   console.log('\n2️⃣  PLAN — deciding what to test');
   const plan = await askJson<{ scenarios: Scenario[] }>(
     PLANNER,
-    `Propose exactly ${LIMITS.maxScenarios} scenarios.\n\n${snapText}`,
+    `Propose exactly ${LIMITS.maxScenarios} scenarios.\n\n` +
+      (existing.length
+        ? `These AI-written tests already exist — do not propose anything that duplicates them:\n${existing.map((t) => `- ${t}`).join('\n')}\n\n`
+        : '') +
+      snapText,
   );
   const scenarios = plan.scenarios.slice(0, LIMITS.maxScenarios);
   scenarios.forEach((s) => console.log(`  📝 ${s.title} (${s.user})`));
@@ -45,8 +51,7 @@ async function main() {
   const outcomes: Outcome[] = [];
 
   for (const s of scenarios) {
-    const slug = s.id.toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, 60);
-    const file = path.join('tests/generated', `${slug}.spec.ts`);
+    const file = freeFileName(s.id);
     assertSafePath(file);
     console.log(`\n▶️  ${s.title}`);
 

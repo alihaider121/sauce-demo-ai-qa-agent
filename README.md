@@ -24,7 +24,7 @@ or any OpenAI-compatible provider such as Google Gemini.
 |---|---|---|
 | Observe | `agent/observe.ts` | Opens each page and captures its accessibility tree and `data-test` ids |
 | Plan | `agent/run.ts` + `prompts.ts` | The model proposes new test scenarios as JSON |
-| Write | `agent/run.ts` | The model writes one `.spec.ts` per scenario into `tests/generated/` |
+| Write | `agent/run.ts` | The model writes one `.spec.ts` per scenario into `tests/generated/`. Tests merged from earlier runs are kept: the planner is told about them to avoid duplicates, and new files never overwrite them, so the suite grows run by run |
 | Run | `agent/run.ts` | Playwright runs it, and the agent reads the JSON result |
 | Reflect / Heal | `agent/run.ts` | On failure, the model decides whether it's a **test bug** (fix it and rerun) or an **app bug** (flag it with `test.fail()`) |
 | Report | `agent/report.ts` | Markdown summary, GitHub job summary, HTML report on Pages, and a PR with the new tests |
